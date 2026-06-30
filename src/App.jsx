@@ -121,7 +121,25 @@ const CSS = `
 async function loadData() {
   try {
     const r = localStorage.getItem("budget-v4");
-    if (r) { const d = JSON.parse(r); if (d.categories && d.categories[0]?.subcategories !== undefined) return d; }
+    if (r) {
+      const d = JSON.parse(r);
+      if (d.categories && d.categories[0]?.subcategories !== undefined &&
+          (d.transactions?.length > 0 || Object.keys(d.statementBalances || {}).length > 0)) {
+        return d;
+      }
+    }
+    // localStorage empty/default — pull from Supabase
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/budget_data?id=eq.shared&select=data`, {
+      headers: { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY, Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` }
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (rows?.[0]?.data) {
+        localStorage.setItem("budget-v4", JSON.stringify(rows[0].data));
+        return rows[0].data;
+      }
+    }
+    if (r) { const d = JSON.parse(r); if (d.categories) return d; }
     return null;
   } catch { return null; }
 }
